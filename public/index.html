@@ -54,7 +54,7 @@
 </head>
 <body>
 <main>
-  <h1>Upcoming</h1>
+  <h1>When I get to see you next</h1>
   <div id="app"></div>
 </main>
 
@@ -90,7 +90,7 @@
   const MONTHS = ["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"];
 
   // Returns [year, month, day] or null. Slash dates are read as US month/day/year.
-  function parseDate(s) {
+  function eparseDate(s) {
     let m;
     if ((m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/))) return [+m[1], +m[2], +m[3]];                  // 2026-10-15
     if ((m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/)))                                             // 10/15/2026, 10/15/26

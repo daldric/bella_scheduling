@@ -1,0 +1,40 @@
+name: Event reminders
+
+on:
+  schedule:
+    - cron: "5 * * * *"   # every hour, at 5 minutes past
+  workflow_dispatch:       # lets you run it by hand from the Actions tab
+
+permissions:
+  contents: write          # needed to save the sent-reminders log
+
+concurrency:
+  group: reminders
+  cancel-in-progress: false
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Send due reminders
+        env:
+          SHEET_CSV_URL: "https://docs.google.com/spreadsheets/d/e/2PACX-1vS59fPJ8TzCSBF3prgMUK8O1p0CQHdI9KhHD1SPFSkdj6ECcOK0rvOWdkgC9CBG7eTqect3p4mhUq_Z/pub?gid=0&single=true&output=csv"
+          TIMEZONE: "America/New_York"   # the time zone your sheet's times are in
+          SITE_URL: "https://${{ github.repository_owner }}.github.io/bella_scheduling/"   # link added to each email
+          GMAIL_ADDRESS: ${{ secrets.GMAIL_ADDRESS }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          REMINDER_EMAILS: ${{ secrets.REMINDER_EMAILS }}
+        run: python3 scripts/send_reminders.py
+
+      - name: Save sent log
+        if: always()
+        run: |
+          if [ -n "$(git status --porcelain sent_reminders.json)" ]; then
+            git config user.name "reminder-bot"
+            git config user.email "reminder-bot@users.noreply.github.com"
+            git add sent_reminders.json
+            git commit -m "Update sent reminders"
+            git push
+          fi
