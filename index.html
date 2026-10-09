@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Our Event Schedule</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #111827;
+    --surface: #1a2236;
+    --line: #2a3550;
+    --text: #e8ecf5;
+    --muted: #8f9bb6;
+    --accent: #7fd1c7;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); }
+  body {
+    font-family: "Bricolage Grotesque", system-ui, sans-serif;
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+  main { max-width: 760px; margin: 0 auto; padding: 56px 20px 80px; }
+  h1 { font-size: 1rem; font-weight: 600; color: var(--muted); margin: 0 0 32px; }
+
+  .next { padding: 8px 0 40px; border-bottom: 1px solid var(--line); }
+  .next .when { color: var(--muted); margin: 0 0 4px; }
+  .next h2 { font-size: clamp(2rem, 7vw, 3.4rem); font-weight: 800; line-height: 1.1; margin: 0; letter-spacing: -0.02em; }
+  .next .where { color: var(--muted); font-size: 1.1rem; margin: 8px 0 0; }
+  .units { margin-top: 28px; display: flex; gap: clamp(14px, 5vw, 40px); flex-wrap: wrap; }
+  .unit b {
+    display: block; font-size: clamp(2.6rem, 12vw, 5.5rem); font-weight: 800; line-height: 1;
+    color: var(--accent); font-variant-numeric: tabular-nums; letter-spacing: -0.03em;
+  }
+  .unit span { color: var(--muted); font-size: 0.9rem; }
+
+  .list { list-style: none; margin: 0; padding: 0; }
+  .list li {
+    display: flex; justify-content: space-between; align-items: baseline; gap: 16px;
+    padding: 18px 0; border-bottom: 1px solid var(--line);
+  }
+  .list .name { font-weight: 600; font-size: 1.1rem; }
+  .list .date { color: var(--muted); font-size: 0.9rem; }
+  .list .left { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; text-align: right; }
+
+  .note { color: var(--muted); padding: 24px; background: var(--surface); border-radius: 10px; }
+  .note code { color: var(--text); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Upcoming</h1>
+  <div id="app"></div>
+</main>
+
+<script>
+  const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS59fPJ8TzCSBF3prgMUK8O1p0CQHdI9KhHD1SPFSkdj6ECcOK0rvOWdkgC9CBG7eTqect3p4mhUq_Z/pub?gid=0&single=true&output=csv";
+
+  function addDays(d, h, m) {
+    const t = new Date(); t.setDate(t.getDate() + d); t.setHours(h, m, 0, 0); return t;
+  }
+
+  // Minimal CSV parser (handles quoted fields)
+  function parseCSV(text) {
+    const rows = []; let row = [], cur = "", q = false;
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i];
+      if (q) {
+        if (c === '"' && text[i + 1] === '"') { cur += '"'; i++; }
+        else if (c === '"') q = false;
+        else cur += c;
+      } else if (c === '"') q = true;
+      else if (c === ",") { row.push(cur); cur = ""; }
+      else if (c === "\n" || c === "\r") {
+        if (c === "\r" && text[i + 1] === "\n") i++;
+        row.push(cur); rows.push(row); row = []; cur = "";
+      } else cur += c;
+    }
+    if (cur || row.length) { row.push(cur); rows.push(row); }
+    return rows;
+  }
+
+  // Google Sheets sends dates and times exactly as they look in the sheet,
+  // so accept the common formats instead of one strict one.
+  const MONTHS = ["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"];
+
+  // Returns [year, month, day] or null. Slash dates are read as US month/day/year.
+  function parseDate(s) {
+    let m;
+    if ((m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/))) return [+m[1], +m[2], +m[3]];                  // 2026-10-15
+    if ((m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/)))                                             // 10/15/2026, 10/15/26
+      return [m[3].length === 2 ? 2000 + +m[3] : +m[3], +m[1], +m[2]];
+    if ((m = s.match(/([A-Za-z]{3})[a-z]*\.?\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(\d{4})/))) {              // Oct 15, 2026 / Thursday, October 15, 2026
+      const mo = MONTHS.indexOf(m[1].toLowerCase()) + 1;
+      if (mo) return [+m[3], mo, +m[2]];
+    }
+    if ((m = s.match(/(\d{1,2})\s+([A-Za-z]{3})[a-z]*\.?,?\s+(\d{4})/))) {                              // 15 Oct 2026
+      const mo = MONTHS.indexOf(m[2].toLowerCase()) + 1;
+      if (mo) return [+m[3], mo, +m[1]];
+    }
+    return null;
+  }
+
+  // Returns [hours, minutes]; handles 18:30, 18:30:00, 6:30 PM, 6 pm. Blank = midnight.
+  function parseTime(s) {
+    const m = s.match(/^(\d{1,2})(?::(\d{2}))?(?::\d{2})?\s*([ap])?\.?m?\.?$/i);
+    if (!m) return [0, 0];
+    let h = +m[1];
+    const ap = (m[3] || "").toLowerCase();
+    if (ap === "p" && h < 12) h += 12;
+    if (ap === "a" && h === 12) h = 0;
+    return [h, +(m[2] || 0)];
+  }
+
+  // Sheet columns: Event, Date, Time, Location (extra columns are ignored)
+  function toEvents(rows) {
+    return rows.slice(1).map(r => {
+      const [name, date, time, location] = (r || []).map(s => (s || "").trim());
+      const dt = parseDate(date || "");
+      if (!name || !dt) return null;
+      const [h, mi] = parseTime(time || "");
+      const when = new Date(dt[0], dt[1] - 1, dt[2], h, mi);
+      return isNaN(when) ? null : { name, location, when };
+    }).filter(Boolean);
+  }
+
+  let events = [];
+  const app = document.getElementById("app");
+  const pad = n => String(n).padStart(2, "0");
+  const fmt = d => d.toLocaleString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
+  const fmtDay = d => d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" });
+
+  function parts(ms) {
+    const s = Math.max(0, Math.floor(ms / 1000));
+    return { d: Math.floor(s / 86400), h: Math.floor(s % 86400 / 3600), m: Math.floor(s % 3600 / 60), s: s % 60 };
+  }
+
+  function render() {
+    const now = Date.now();
+    const upcoming = events.filter(e => e.when - now > 0).sort((a, b) => a.when - b.when);
+    if (!upcoming.length) {
+      app.innerHTML = '<p class="note">No upcoming events :( we gotta get something scheduled ASAP</p>';
+      return;
+    }
+    const [first, ...rest] = upcoming;
+    const p = parts(first.when - now);
+    app.innerHTML =
+      '<section class="next">' +
+        '<p class="when">Next up &middot; ' + esc(fmt(first.when)) + '</p>' +
+        '<h2>' + esc(first.name) + '</h2>' +
+        (first.location ? '<p class="where">' + esc(first.location) + '</p>' : '') +
+        '<div class="units">' +
+          unit(p.d, "days") + unit(pad(p.h), "hours") + unit(pad(p.m), "minutes") + unit(pad(p.s), "seconds") +
+        '</div>' +
+      '</section>' +
+      '<ul class="list">' + rest.map(e => {
+        const q = parts(e.when - now);
+        return '<li><div><div class="name">' + esc(e.name) + '</div><div class="date">' + esc(fmtDay(e.when)) + '</div>' +
+               (e.location ? '<div class="date">' + esc(e.location) + '</div>' : '') + '</div>' +
+               '<div class="left">' + q.d + 'd ' + q.h + 'h ' + q.m + 'm</div></li>';
+      }).join("") + '</ul>';
+  }
+  const unit = (n, l) => '<div class="unit"><b>' + n + '</b><span>' + l + '</span></div>';
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+  async function load() {
+    if (!SHEET_CSV_URL) { events = []; render(); return; }
+    try {
+      const res = await fetch(SHEET_CSV_URL, { cache: "no-store" });
+      if (!res.ok) throw new Error(res.status);
+      events = toEvents(parseCSV(await res.text()));
+      render();
+    } catch (e) {
+      if (!events.length) app.innerHTML = '<p class="note">Couldn\'t load events. Check that the sheet is published to the web as CSV and that <code>SHEET_CSV_URL</code> is correct.</p>';
+    }
+  }
+
+  load();
+  setInterval(render, 1000);
+  setInterval(load, 5 * 60 * 1000);
+</script>
+</body>
+</html>
