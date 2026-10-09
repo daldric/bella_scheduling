@@ -87,13 +87,13 @@ def build_email(e, now, site_url):
     else:
         n = max(1, round(left.total_seconds() / 60))
         soon = f"about {n} minute{'s' if n != 1 else ''}"
-    lines = [e["name"], e["when"].strftime("%A, %B %-d, %Y at %-I:%M %p")]
+    lines = ["WE'RE GONNA DO SOMETHING TOGETHER VERY SOON", "", f'WHAT {e["name"]}', f'WHEN{e["when"].strftime("%A, %B %-d, %Y at %-I:%M %p")}']
     if e["location"]:
-        lines.append(f"Location: {e['location']}")
-    lines += ["", f"Starts in {soon}."]
+        lines.append(f"WHERE: {e['location']}")
+    lines += ["", f"Starts in {soon} (WOOHOO)"]
     if site_url:
-        lines += ["", f"All countdowns: {site_url}"]
-    subject = f"Reminder: {e['name']} ({e['when'].strftime('%a %b %-d, %-I:%M %p')})"
+        lines += ["", f"To see the rest of our wonderful plans: {site_url}"]
+    subject = f"UPCOMING PLANS: {e['name']} ({e['when'].strftime('%a %b %-d, %-I:%M %p')})"
     return subject, "\n".join(lines)
 
 
@@ -110,7 +110,8 @@ def main():
     sent = {}
     if os.path.exists(STATE_FILE):
         with open(STATE_FILE) as f:
-            sent = json.load(f)
+            raw = f.read().strip()
+        sent = json.loads(raw) if raw else {}  # an empty file counts as "nothing sent yet"
     cutoff = (now - timedelta(days=30)).isoformat()
     pruned = {k: v for k, v in sent.items() if v >= cutoff}
     changed = pruned != sent
@@ -120,15 +121,25 @@ def main():
     print(f"{len(events)} events read, {len(due)} reminder(s) due.")
     if due and not dry:
         recipients = [x.strip() for x in os.environ["REMINDER_EMAILS"].split(",") if x.strip()]
-        smtp = smtplib.SMTP_SSL("smtp.gmail.com", 465)
-        smtp.login(os.environ["GMAIL_ADDRESS"], os.environ["GMAIL_APP_PASSWORD"])
+        # Secrets often pick up stray spaces or a trailing newline when pasted; Gmail
+        # drops the connection if they reach the login step, so clean them first.
+        user = os.environ["GMAIL_ADDRESS"].strip()
+        password = "".join(os.environ["GMAIL_APP_PASSWORD"].split())
+        smtp = smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=30)
+        try:
+            smtp.login(user, password)
+        except (smtplib.SMTPAuthenticationError, smtplib.SMTPServerDisconnected) as err:
+            raise SystemExit(
+                f"Gmail login failed ({type(err).__name__}). Check GMAIL_ADDRESS and "
+                "GMAIL_APP_PASSWORD, and that 2-Step Verification is on for that account."
+            )
     for key, e in due:
         subject, body = build_email(e, now, site_url)
         if dry:
             print(f"[dry run] {subject}\n{body}\n")
             continue
         msg = EmailMessage()
-        msg["From"], msg["To"], msg["Subject"] = os.environ["GMAIL_ADDRESS"], ", ".join(recipients), subject
+        msg["From"], msg["To"], msg["Subject"] = user, ", ".join(recipients), subject
         msg.set_content(body)
         smtp.send_message(msg)
         sent[key] = e["when"].isoformat()
