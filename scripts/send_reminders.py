@@ -124,6 +124,7 @@ def build_email(e, now, site_url):
     if e["location"]:
         lines.append(f"WHERE: {e['location']}")
     lines += ["", f"Starts in {soon} (WOOHOO)"]
+    lines += ["", f"Link to a Google Calendar invite: {calendar_link(e)}"]
     if site_url:
         lines += ["", f"To see the rest of our wonderful plans: {site_url}"]
     subject = f"UPCOMING PLANS: {e['name']} ({e['whenStart'].strftime('%a %b %-d, %-I:%M %p')})"
