@@ -29,42 +29,6 @@
       "start": "2026-11-07T20:00:00-05:00",
       "end": "2026-11-08T11:00:00-05:00",
       "location": "Buffalo"
-    },
-    "Test row 2|2026-10-10": {
-      "name": "Test row 2",
-      "start": "2026-10-10T13:00:00-04:00",
-      "end": "2026-10-11T17:00:00-04:00",
-      "location": "Ballston Lake"
-    },
-    "Test Row 3|2026-10-11": {
-      "name": "Test Row 3",
-      "start": "2026-10-11T13:00:00-04:00",
-      "end": "2026-10-11T14:00:00-04:00",
-      "location": "Ballston Lake"
-    },
-    "Test Row 4|2026-10-11": {
-      "name": "Test Row 4",
-      "start": "2026-10-11T13:00:00-04:00",
-      "end": "2026-10-11T14:00:00-04:00",
-      "location": "Ballston Lake"
-    },
-    "Test Row 5|2026-10-11": {
-      "name": "Test Row 5",
-      "start": "2026-10-11T13:00:00-04:00",
-      "end": "2026-10-12T15:00:00-04:00",
-      "location": "Ballston Lake"
-    },
-    "Test Row 6|2026-10-22": {
-      "name": "Test Row 6",
-      "start": "2026-10-22T02:00:00-04:00",
-      "end": "2026-10-24T13:00:00-04:00",
-      "location": "Queens"
-    },
-    "Test Row 7|2026-10-22": {
-      "name": "Test Row 7",
-      "start": "2026-10-22T02:00:00-04:00",
-      "end": "2026-10-24T13:00:00-04:00",
-      "location": "Queens"
     }
   }
 }
