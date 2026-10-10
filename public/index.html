@@ -202,7 +202,7 @@
     ].join("\r\n"));
   };
   const calButton = e =>
-    '<a class="cal" href="' + esc(calLink(e)) + '" target="_blank" rel="noopener">Add to Google Calendar</a>' +
+    '<a class="cal" href="' + esc(calLink(e)) + '" target="_blank" rel="noopener">Add to Google Calendar &middot;</a>' +
     '<a class="cal" href="' + icsHref(e) + '" download="' + esc(e.name.replace(/\W+/g, "-")) + '.ics">Download Calendar Invite</a>';
 
     function tick() {
