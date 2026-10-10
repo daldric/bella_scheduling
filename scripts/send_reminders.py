@@ -50,7 +50,7 @@ def parse_time(s):
 def parse_events(text, tz):
     events = []
     for row in list(csv.reader(io.StringIO(text)))[1:]:
-        row = [c.strip() for c in row] + [""] * 5
+        row = [c.strip() for c in row] + [""] * 7
         name, startDate, startTime, endDate, endTime, location, rem = row[:7]
         startD = parse_date(startDate)
         endD = parse_date(endDate)
