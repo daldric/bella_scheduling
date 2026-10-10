@@ -10,6 +10,7 @@ import csv, io, json, os, re, smtplib, urllib.request
 from datetime import datetime, timedelta
 from email.message import EmailMessage
 from zoneinfo import ZoneInfo
+from urllib.parse import urlencode
 
 STATE_FILE = "storage/sent_reminders.json"
 DEFAULT_HOURS = 24.0
@@ -81,6 +82,35 @@ def due_reminders(events, now, sent):
             out.append((key, e))
     return out
 
+def build_ics(e):
+    utc = lambda d: d.astimezone(ZoneInfo("UTC")).strftime("%Y%m%dT%H%M%SZ")
+    day = lambda d: d.strftime("%Y%m%d")
+    esc = lambda s: s.replace("\\", "\\\\").replace(",", "\\,").replace(";", "\\;").replace("\n", "\\n")
+    slug = re.sub(r"\W+", "", e["name"])
+    start = e["whenStart"].date()
+    end = max(e["whenEnd"].date(), start) + timedelta(days=1)  # an all-day end date is the day after the last day
+    when = f"{e['whenStart'].strftime('%a %b %-d, %-I:%M %p')} to {e['whenEnd'].strftime('%a %b %-d, %-I:%M %p')}"
+    return "\r\n".join([
+        "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//bella_scheduling//EN", "CALSCALE:GREGORIAN", "METHOD:PUBLISH",
+        "BEGIN:VEVENT",
+        f"UID:{day(e['whenStart'])}-{slug}@bella_scheduling",
+        f"DTSTAMP:{utc(datetime.now(ZoneInfo('UTC')))}",
+        f"DTSTART;VALUE=DATE:{start:%Y%m%d}",
+        f"DTEND;VALUE=DATE:{end:%Y%m%d}",
+        f"SUMMARY:{esc(e['name'])}",
+        f"LOCATION:{esc(e['location'])}",
+        f"DESCRIPTION:{esc(when)}",
+        "END:VEVENT", "END:VCALENDAR", ""])
+
+def calendar_link(e):
+    fmt = "%Y%m%dT%H%M%S"
+    return "https://calendar.google.com/calendar/render?" + urlencode({
+        "action": "TEMPLATE",
+        "text": e["name"],
+        "dates": f"{e['whenStart'].strftime(fmt)}/{e['whenEnd'].strftime(fmt)}",
+        "location": e["location"],
+        "ctz": os.environ.get("TIMEZONE", "America/New_York"),
+    })
 
 def build_email(e, now, site_url):
     left = e["whenStart"] - now
@@ -105,6 +135,8 @@ def main():
     site_url = os.environ.get("SITE_URL", "")
     dry = os.environ.get("DRY_RUN") == "1"
     now = datetime.now(tz)
+
+    os.makedirs(os.path.dirname(STATE_FILE) or ".", exist_ok=True)
 
     with urllib.request.urlopen(os.environ["SHEET_CSV_URL"], timeout=30) as r:
         text = r.read().decode("utf-8-sig")
@@ -144,6 +176,9 @@ def main():
         msg = EmailMessage()
         msg["From"], msg["To"], msg["Subject"] = user, ", ".join(recipients), subject
         msg.set_content(body)
+        fname = (re.sub(r"\W+", "-", e["name"]).strip("-") or "event") + ".ics"
+        msg.add_attachment(build_ics(e).encode("utf-8"), maintype="text", subtype="calendar",
+                           filename=fname, params={"method": "PUBLISH"})
         smtp.send_message(msg)
         sent[key] = e["whenStart"].isoformat()
         changed = True

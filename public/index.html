@@ -50,6 +50,10 @@
   .note { color: var(--muted); padding: 24px; background: var(--surface); border-radius: 10px; }
   .note code { color: var(--text); }
   :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+  .cal { display: inline-block; margin-top: 8px; color: var(--accent); font-weight: 600; text-decoration: none; border-bottom: 1px solid var(--accent); }
+  .list .cal { margin-top: 4px; font-size: 0.9rem; }
+  .cal + .cal { margin-left: 18px; }
 </style>
 </head>
 <body>
@@ -157,7 +161,7 @@
         '<p class="when">Next up</p>' +
         '<h2>' + esc(first.name) + '</h2>' +
         '<p class="where">' + esc(fmt(first.whenStart)) + ' until ' + esc(fmt(first.whenEnd)) + '</p>' + 
-        (first.location ? '<p class="where">' + esc(first.location) + '</p>' : '') +
+        (first.location ? '<p class="where">' + esc(first.location) + ' &middot; ' + calButton(first) + '</p>' : '') +
         '<div class="units">' +
           unit(p.d, "days") + unit(pad(p.h), "hours") + unit(pad(p.m), "minutes") + unit(pad(p.s), "seconds") +
         '</div>' +
@@ -165,12 +169,56 @@
       '<ul class="list">' + rest.map(e => {
         const q = parts(e.whenStart - now);
         return '<li><div><div class="name">' + esc(e.name) + '</div><div class="date">' + esc(fmtDay(e.whenStart)) + ' - ' + esc(fmtDay(e.whenEnd)) + '</div>' +
-               (e.location ? '<div class="date">' + esc(e.location) + '</div>' : '') + '</div>' +
+               (e.location ? '<div class="date">' + esc(e.location) + '</div>' : '') + calButton(e) + '</div>' +
                '<div class="left">' + q.d + 'd ' + q.h + 'h ' + q.m + 'm</div></li>';
       }).join("") + '</ul>';
   }
   const unit = (n, l) => '<div class="unit"><b>' + n + '</b><span>' + l + '</span></div>';
   const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  
+  const TIMEZONE = "America/New_York"; // the time zone your sheet's times are in
+  const calStamp = d => d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + "T" + pad(d.getHours()) + pad(d.getMinutes()) + "00";
+  const calLink = e => "https://calendar.google.com/calendar/render?" + new URLSearchParams({
+    action: "TEMPLATE", text: e.name, dates: calStamp(e.whenStart) + "/" + calStamp(e.whenEnd),
+    location: e.location || "", ctz: TIMEZONE
+  });
+  
+  const icsStamp = d => d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+  const icsEsc = s => String(s || "").replace(/\\/g, "\\\\").replace(/[,;]/g, "\\$&").replace(/\r?\n/g, "\\n");
+  const icsDay = d => d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate());
+  const icsHref = e => {
+    const end = new Date(Math.max(e.whenEnd, e.whenStart)); end.setDate(end.getDate() + 1); // all-day end is the day after the last day
+    return "data:text/calendar;charset=utf-8," + encodeURIComponent([
+      "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//bella_scheduling//EN", "CALSCALE:GREGORIAN", "METHOD:PUBLISH",
+      "BEGIN:VEVENT",
+      "UID:" + icsDay(e.whenStart) + "-" + e.name.replace(/\W+/g, "") + "@bella_scheduling",
+      "DTSTAMP:" + icsStamp(new Date()),
+      "DTSTART;VALUE=DATE:" + icsDay(e.whenStart),
+      "DTEND;VALUE=DATE:" + icsDay(end),
+      "SUMMARY:" + icsEsc(e.name),
+      "LOCATION:" + icsEsc(e.location),
+      "DESCRIPTION:" + icsEsc(fmt(e.whenStart) + " to " + fmt(e.whenEnd)),
+      "END:VEVENT", "END:VCALENDAR"
+    ].join("\r\n"));
+  };
+  const calButton = e =>
+    //'<a class="cal" href="' + esc(calLink(e)) + '" target="_blank" rel="noopener">Add to Google Calendar</a>' +
+    '<a class="cal" href="' + icsHref(e) + '" download="' + esc(e.name.replace(/\W+/g, "-")) + '.ics">Download Calendar Invite</a>';
+
+    function tick() {
+    const now = Date.now();
+    const next = events.filter(e => e.whenStart - now > 0).sort((a, b) => a.whenStart - b.whenStart);
+    const key = next.map(e => [e.name, e.whenStart.getTime(), e.whenEnd.getTime(), e.location].join("|")).join(",");
+    if (key !== app.dataset.key) { app.dataset.key = key; render(); return; }
+    if (!next.length) return;
+    const p = parts(next[0].whenStart - now);
+    const b = app.querySelectorAll(".unit b");
+    if (b.length === 4) { b[0].textContent = p.d; b[1].textContent = pad(p.h); b[2].textContent = pad(p.m); b[3].textContent = pad(p.s); }
+    app.querySelectorAll(".left").forEach((el, i) => {
+      const q = parts(next[i + 1].whenStart - now);
+      el.textContent = q.d + "d " + q.h + "h " + q.m + "m";
+    });
+  }
 
   async function load() {
     if (!SHEET_CSV_URL) { events = []; render(); return; }
