@@ -103,13 +103,11 @@ def build_ics(e):
         "END:VEVENT", "END:VCALENDAR", ""])
 
 def calendar_link(e):
-    fmt = "%Y%m%dT%H%M%S"
+    start = e["whenStart"].date()
+    end = max(e["whenEnd"].date(), start) + timedelta(days=1)
     return "https://calendar.google.com/calendar/render?" + urlencode({
-        "action": "TEMPLATE",
-        "text": e["name"],
-        "dates": f"{e['whenStart'].strftime(fmt)}/{e['whenEnd'].strftime(fmt)}",
+        "action": "TEMPLATE", "text": e["name"], "dates": f"{start:%Y%m%d}/{end:%Y%m%d}",
         "location": e["location"],
-        "ctz": os.environ.get("TIMEZONE", "America/New_York"),
     })
 
 def build_email(e, now, site_url):

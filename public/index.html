@@ -177,10 +177,13 @@
   
   const TIMEZONE = "America/New_York"; // the time zone your sheet's times are in
   const calStamp = d => d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + "T" + pad(d.getHours()) + pad(d.getMinutes()) + "00";
-  const calLink = e => "https://calendar.google.com/calendar/render?" + new URLSearchParams({
-    action: "TEMPLATE", text: e.name, dates: calStamp(e.whenStart) + "/" + calStamp(e.whenEnd),
-    location: e.location || "", ctz: TIMEZONE
-  });
+  const calLink = e => {
+    const end = new Date(Math.max(e.whenEnd, e.whenStart)); end.setDate(end.getDate() + 1);
+    return "https://calendar.google.com/calendar/render?" + new URLSearchParams({
+      action: "TEMPLATE", text: e.name, dates: icsDay(e.whenStart) + "/" + icsDay(end),
+      location: e.location || "", details: fmt(e.whenStart) + " to " + fmt(e.whenEnd)
+    });
+  };
   
   const icsStamp = d => d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
   const icsEsc = s => String(s || "").replace(/\\/g, "\\\\").replace(/[,;]/g, "\\$&").replace(/\r?\n/g, "\\n");
