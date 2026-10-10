@@ -63,6 +63,7 @@
 
 <script>
   const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS59fPJ8TzCSBF3prgMUK8O1p0CQHdI9KhHD1SPFSkdj6ECcOK0rvOWdkgC9CBG7eTqect3p4mhUq_Z/pub?gid=0&single=true&output=csv";
+  const SHEET_EDIT_URL = "https://docs.google.com/spreadsheets/d/1A1VET48GIV6QpmyI73XkmJTDdoaFA6Vest_Gto-vNOU/edit?usp=sharing"
 
   function addDays(d, h, m) {
     const t = new Date(); t.setDate(t.getDate() + d); t.setHours(h, m, 0, 0); return t;
@@ -156,6 +157,7 @@
     const [first, ...rest] = upcoming;
     const p = parts(first.whenStart - now);
     app.innerHTML =
+      '<p class="when"><a class="cal" href="' + esc(SHEET_EDIT_URL) + '" target="_blank" rel="noopener">Sheet to edit plans</a></p>' +
       '<section class="next">' +
         '<p class="when">Next up</p>' +
         '<h2>' + esc(first.name) + '</h2>' +
