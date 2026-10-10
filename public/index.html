@@ -117,15 +117,18 @@
     return [h, +(m[2] || 0)];
   }
 
-  // Sheet columns: Event, Date, Time, Location (extra columns are ignored)
+  // Sheet columns: Event, Start Date, Start Time, End Date, End Time, Location (extra columns are ignored)
   function toEvents(rows) {
     return rows.slice(1).map(r => {
-      const [name, date, time, location] = (r || []).map(s => (s || "").trim());
-      const dt = parseDate(date || "");
-      if (!name || !dt) return null;
-      const [h, mi] = parseTime(time || "");
-      const when = new Date(dt[0], dt[1] - 1, dt[2], h, mi);
-      return isNaN(when) ? null : { name, location, when };
+      const [name, startDate, startTime, endDate, endTime, location] = (r || []).map(s => (s || "").trim());
+      const startDt = parseDate(startDate || "");
+      const endDt = parseDate(endDate || "");
+      if (!name || !startDt || !endDt) return null;
+      const [startH, startMi] = parseTime(startTime || "");
+      const whenStart = new Date(startDt[0], startDt[1] - 1, startDt[2], startH, startMi);
+      const [endH, endMi] = parseTime(endTime || "");
+      const whenEnd = new Date(endDt[0], endDt[1] - 1, endDt[2], endH, endMi);
+      return isNaN(whenStart) | isNaN(whenEnd) ? null : { name, location, whenStart, whenEnd };
     }).filter(Boolean);
   }
 
@@ -142,25 +145,26 @@
 
   function render() {
     const now = Date.now();
-    const upcoming = events.filter(e => e.when - now > 0).sort((a, b) => a.when - b.when);
+    const upcoming = events.filter(e => e.whenStart - now > 0).sort((a, b) => a.whenStart - b.whenStart);
     if (!upcoming.length) {
       app.innerHTML = '<p class="note">No upcoming events :( we gotta get something scheduled ASAP</p>';
       return;
     }
     const [first, ...rest] = upcoming;
-    const p = parts(first.when - now);
+    const p = parts(first.whenStart - now);
     app.innerHTML =
       '<section class="next">' +
-        '<p class="when">Next up &middot; ' + esc(fmt(first.when)) + '</p>' +
+        '<p class="when">Next up</p>' +
         '<h2>' + esc(first.name) + '</h2>' +
+        '<p class="where">' + esc(fmt(first.whenStart)) + ' until ' + esc(fmt(first.whenEnd)) + '</p>' + 
         (first.location ? '<p class="where">' + esc(first.location) + '</p>' : '') +
         '<div class="units">' +
           unit(p.d, "days") + unit(pad(p.h), "hours") + unit(pad(p.m), "minutes") + unit(pad(p.s), "seconds") +
         '</div>' +
       '</section>' +
       '<ul class="list">' + rest.map(e => {
-        const q = parts(e.when - now);
-        return '<li><div><div class="name">' + esc(e.name) + '</div><div class="date">' + esc(fmtDay(e.when)) + '</div>' +
+        const q = parts(e.whenStart - now);
+        return '<li><div><div class="name">' + esc(e.name) + '</div><div class="date">' + esc(fmtDay(e.whenStart)) + ' - ' + esc(fmtDay(e.whenEnd)) + '</div>' +
                (e.location ? '<div class="date">' + esc(e.location) + '</div>' : '') + '</div>' +
                '<div class="left">' + q.d + 'd ' + q.h + 'h ' + q.m + 'm</div></li>';
       }).join("") + '</ul>';

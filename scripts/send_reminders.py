@@ -51,9 +51,10 @@ def parse_events(text, tz):
     events = []
     for row in list(csv.reader(io.StringIO(text)))[1:]:
         row = [c.strip() for c in row] + [""] * 5
-        name, date, time, location, rem = row[:5]
-        d = parse_date(date)
-        if not name or not d:
+        name, startDate, startTime, endDate, endTime, location, rem = row[:5]
+        startD = parse_date(startDate)
+        endD = parse_date(endDate)
+        if not name or not startD or not endD:
             continue
         try:
             hours = float(rem) if rem else DEFAULT_HOURS
@@ -61,39 +62,41 @@ def parse_events(text, tz):
             hours = DEFAULT_HOURS
         if hours <= 0:
             continue
-        h, mi = parse_time(time)
+        startH, startMi = parse_time(startTime)
+        endH, endMi = parse_time(endTime)
         try:
-            when = datetime(d[0], d[1], d[2], h, mi, tzinfo=tz)
+            whenStart = datetime(startD[0], startD[1], startD[2], startH, startMi, tzinfo=tz)
+            whenEnd = datetime(endD[0], endD[1], endD[2], endH, endMi, tzinfo=tz)
         except ValueError:
             continue
-        events.append({"name": name, "location": location, "when": when, "hours": hours})
+        events.append({"name": name, "location": location, "whenStart": whenStart, "whenEnd": whenEnd, "hours": hours})
     return events
 
 
 def due_reminders(events, now, sent):
     out = []
     for e in events:
-        key = f"{e['name']}|{e['when'].isoformat()}|{e['hours']:g}"
-        if e["when"] - timedelta(hours=e["hours"]) <= now < e["when"] and key not in sent:
+        key = f"{e['name']}|{e['whenStart'].isoformat()}||{e['whenEnd'].isoformat()}|{e['hours']:g}"
+        if e["whenStart"] - timedelta(hours=e["hours"]) <= now < e["whenStart"] and key not in sent:
             out.append((key, e))
     return out
 
 
 def build_email(e, now, site_url):
-    left = e["when"] - now
+    left = e["whenStart"] - now
     if left >= timedelta(hours=1):
         n = round(left.total_seconds() / 3600)
         soon = f"about {n} hour{'s' if n != 1 else ''}"
     else:
         n = max(1, round(left.total_seconds() / 60))
         soon = f"about {n} minute{'s' if n != 1 else ''}"
-    lines = ["WE'RE GONNA DO SOMETHING TOGETHER VERY SOON", "", f'WHAT: {e["name"]}', f'WHEN: {e["when"].strftime("%A, %B %-d, %Y at %-I:%M %p")}']
+    lines = ["WE'RE GONNA DO SOMETHING TOGETHER VERY SOON", "", f'WHAT: {e["name"]}', f'WHEN: {e["whenStart"].strftime("%A, %B %-d, %Y at %-I:%M %p")} until {e["whenEnd"].strftime("%A, %B %-d, %Y at %-I:%M %p")}']
     if e["location"]:
         lines.append(f"WHERE: {e['location']}")
     lines += ["", f"Starts in {soon} (WOOHOO)"]
     if site_url:
         lines += ["", f"To see the rest of our wonderful plans: {site_url}"]
-    subject = f"UPCOMING PLANS: {e['name']} ({e['when'].strftime('%a %b %-d, %-I:%M %p')})"
+    subject = f"UPCOMING PLANS: {e['name']} ({e['whenStart'].strftime('%a %b %-d, %-I:%M %p')})"
     return subject, "\n".join(lines)
 
 
@@ -142,7 +145,7 @@ def main():
         msg["From"], msg["To"], msg["Subject"] = user, ", ".join(recipients), subject
         msg.set_content(body)
         smtp.send_message(msg)
-        sent[key] = e["when"].isoformat()
+        sent[key] = e["whenStart"].isoformat()
         changed = True
         print(f"Sent: {subject}")
         with open(STATE_FILE, "w") as f:  # save after each send so a later failure can't cause repeats
