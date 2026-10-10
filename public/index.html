@@ -53,12 +53,11 @@
 
   .cal { display: inline-block; margin-top: 8px; color: var(--accent); font-weight: 600; text-decoration: none; border-bottom: 1px solid var(--accent); }
   .list .cal { margin-top: 4px; font-size: 0.9rem; }
-  .cal + .cal { margin-left: 18px; }
 </style>
 </head>
 <body>
 <main>
-  <h1>Literally counting down the days until our next event</h1>
+  <h1>Literally counting down the seconds until our next event</h1>
   <div id="app"></div>
 </main>
 
@@ -202,7 +201,7 @@
     ].join("\r\n"));
   };
   const calButton = e =>
-    '<a class="cal" href="' + esc(calLink(e)) + '" target="_blank" rel="noopener">Add to Google Calendar &middot;</a>' +
+    '<a class="cal" href="' + esc(calLink(e)) + '" target="_blank" rel="noopener">Add to Google Calendar</a>' + ' &middot; ' + 
     '<a class="cal" href="' + icsHref(e) + '" download="' + esc(e.name.replace(/\W+/g, "-")) + '.ics">Download Calendar Invite</a>';
 
     function tick() {
