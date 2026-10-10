@@ -87,7 +87,7 @@ def build_email(e, now, site_url):
     else:
         n = max(1, round(left.total_seconds() / 60))
         soon = f"about {n} minute{'s' if n != 1 else ''}"
-    lines = ["WE'RE GONNA DO SOMETHING TOGETHER VERY SOON", "", f'WHAT {e["name"]}', f'WHEN{e["when"].strftime("%A, %B %-d, %Y at %-I:%M %p")}']
+    lines = ["WE'RE GONNA DO SOMETHING TOGETHER VERY SOON", "", f'WHAT: {e["name"]}', f'WHEN: {e["when"].strftime("%A, %B %-d, %Y at %-I:%M %p")}']
     if e["location"]:
         lines.append(f"WHERE: {e['location']}")
     lines += ["", f"Starts in {soon} (WOOHOO)"]
