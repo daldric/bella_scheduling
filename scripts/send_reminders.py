@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 from email.message import EmailMessage
 from zoneinfo import ZoneInfo
 
-STATE_FILE = "sent_reminders.json"
+STATE_FILE = "storage/sent_reminders.json"
 DEFAULT_HOURS = 24.0
 MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"]
 
